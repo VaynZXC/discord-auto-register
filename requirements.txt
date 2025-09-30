@@ -1,0 +1,14 @@
+flask>=3.0.0
+requests>=2.31.0
+playwright>=1.40.0
+torch>=2.1.0
+transformers>=4.45.0
+accelerate>=0.24.0
+Pillow>=10.0.0
+bitsandbytes>=0.41.0
+scipy>=1.11.0
+easyocr>=1.7.0
+numpy>=1.24.0
+open-clip-torch>=2.24.0
+opencv-python>=4.8.0
+openai>=1.40.0

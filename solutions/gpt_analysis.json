@@ -1,0 +1,154 @@
+{
+  "timestamp": "2025-09-24 00:02:55",
+  "image_path": "dataset\\screens\\20250923_233535_smoke.png",
+  "solution": {
+    "instruction": "Найдите все фотографии с предметами, обычно встречающимися в лесах.",
+    "task_type": "select_multiple",
+    "interactive_elements": [
+      {
+        "id": 0,
+        "role": "tile",
+        "content": "городские здания",
+        "center": {
+          "x": 83,
+          "y": 160
+        },
+        "bbox": {
+          "x": 20,
+          "y": 100,
+          "width": 126,
+          "height": 120
+        }
+      },
+      {
+        "id": 1,
+        "role": "tile",
+        "content": "внедорожник",
+        "center": {
+          "x": 208,
+          "y": 160
+        },
+        "bbox": {
+          "x": 145,
+          "y": 100,
+          "width": 126,
+          "height": 120
+        }
+      },
+      {
+        "id": 2,
+        "role": "tile",
+        "content": "птица в лесу",
+        "center": {
+          "x": 333,
+          "y": 160
+        },
+        "bbox": {
+          "x": 270,
+          "y": 100,
+          "width": 126,
+          "height": 120
+        }
+      },
+      {
+        "id": 3,
+        "role": "tile",
+        "content": "строительный кран",
+        "center": {
+          "x": 83,
+          "y": 285
+        },
+        "bbox": {
+          "x": 20,
+          "y": 225,
+          "width": 126,
+          "height": 120
+        }
+      },
+      {
+        "id": 4,
+        "role": "tile",
+        "content": "лесная сцена с птицей",
+        "center": {
+          "x": 208,
+          "y": 285
+        },
+        "bbox": {
+          "x": 145,
+          "y": 225,
+          "width": 126,
+          "height": 120
+        }
+      },
+      {
+        "id": 5,
+        "role": "tile",
+        "content": "лесная сцена с деревьями",
+        "center": {
+          "x": 333,
+          "y": 285
+        },
+        "bbox": {
+          "x": 270,
+          "y": 225,
+          "width": 126,
+          "height": 120
+        }
+      },
+      {
+        "id": 6,
+        "role": "tile",
+        "content": "внедорожник",
+        "center": {
+          "x": 83,
+          "y": 410
+        },
+        "bbox": {
+          "x": 20,
+          "y": 350,
+          "width": 126,
+          "height": 120
+        }
+      },
+      {
+        "id": 7,
+        "role": "tile",
+        "content": "строительный кран",
+        "center": {
+          "x": 208,
+          "y": 410
+        },
+        "bbox": {
+          "x": 145,
+          "y": 350,
+          "width": 126,
+          "height": 120
+        }
+      },
+      {
+        "id": 8,
+        "role": "tile",
+        "content": "строительный кран",
+        "center": {
+          "x": 333,
+          "y": 410
+        },
+        "bbox": {
+          "x": 270,
+          "y": 350,
+          "width": 126,
+          "height": 120
+        }
+      }
+    ],
+    "recommendation": {
+      "action": "interact",
+      "target_ids": [
+        2,
+        4,
+        5
+      ],
+      "explanation": "Эти элементы содержат изображения предметов, обычно встречающихся в лесах."
+    }
+  }
+}

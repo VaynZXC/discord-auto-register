@@ -1,0 +1,19 @@
+dataset:
+  path: training/structure_dataset.json
+  categories:
+    - instruction
+    - body
+    - tile
+    - ball
+    - target_ball
+
+train:
+  epochs: 5  # Очень быстрый тест (потом увеличить)
+  batch_size: 4
+  lr: 0.0005
+  val_split: 0.1
+
+augmentations:
+  - type: HorizontalFlip
+  - type: RandomBrightnessContrast
+
