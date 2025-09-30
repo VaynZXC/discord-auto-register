@@ -4,6 +4,13 @@ dataset/
 # Sensitive code with API keys
 src/gpt/analyzer.py
 
+# Account credentials
+accounts.txt
+mails.txt
+
+# Test scripts
+test_*.py
+
 # Python
 __pycache__/
 *.py[cod]

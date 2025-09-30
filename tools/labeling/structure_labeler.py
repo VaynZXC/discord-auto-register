@@ -30,6 +30,11 @@ LABEL_LIST = [
     "tile",
     "ball",
     "target_ball",
+    "bear",            # Медведь
+    "fried_chicken",   # Жареная курица
+    "letter",          # Буква
+    "target_letter",   # Целевая буква
+    "main_letter",     # Главная буква (для перетаскивания)
 ]
 
 LABEL_KEYS: Dict[int, str] = {
@@ -38,6 +43,11 @@ LABEL_KEYS: Dict[int, str] = {
     ord('3'): "tile",
     ord('4'): "ball",
     ord('5'): "target_ball",
+    ord('6'): "bear",           # Клавиша 6 - Медведь
+    ord('7'): "fried_chicken",  # Клавиша 7 - Жареная курица
+    ord('8'): "letter",         # Клавиша 8 - Буква
+    ord('9'): "target_letter",  # Клавиша 9 - Целевая буква
+    ord('0'): "main_letter",    # Клавиша 0 - Главная буква
 }
 
 
@@ -422,12 +432,18 @@ class AnnotationSession:
 
     def _label_color(self, label: str):
         palette = {
-            "instruction": (255, 149, 0),
-            "body": (90, 200, 255),
-            "tile": (80, 230, 110),
-            "ball": (255, 100, 100),  # Красный цвет для мячика
-            "button": (255, 45, 185),
-            "other": (255, 214, 10),
+            "instruction": (255, 149, 0),      # Оранжевый
+            "body": (90, 200, 255),            # Голубой
+            "tile": (80, 230, 110),            # Зеленоватый
+            "ball": (255, 100, 100),           # Красный
+            "target_ball": (0, 255, 255),      # Желтый
+            "button": (255, 45, 185),          # Розовый
+            "other": (255, 214, 10),           # Желто-оранжевый
+            "bear": (42, 82, 139),             # Коричневый (BGR)
+            "fried_chicken": (0, 165, 255),    # Оранжевый (BGR)
+            "letter": (128, 128, 128),         # Серый
+            "target_letter": (255, 128, 0),    # Синий (BGR)
+            "main_letter": (255, 0, 255),      # Фиолетовый (BGR)
         }
         return palette.get(label, (150, 150, 150))
 

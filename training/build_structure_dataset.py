@@ -33,7 +33,8 @@ def load_annotations(json_path: Path) -> List[Dict]:
             
         if not bbox or label is None:
             continue
-        if label not in {"instruction", "body", "tile", "ball", "target_ball"}:
+        if label not in {"instruction", "body", "tile", "ball", "target_ball", 
+                         "bear", "fried_chicken", "letter", "target_letter", "main_letter"}:
             continue
             
         result.append({

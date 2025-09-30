@@ -6,6 +6,11 @@ dataset:
     - tile
     - ball
     - target_ball
+    - bear
+    - fried_chicken
+    - letter
+    - target_letter
+    - main_letter
 
 train:
   epochs: 5  # Очень быстрый тест (потом увеличить)
