@@ -544,6 +544,59 @@ def submit_form(page: Page) -> bool:
         return False
         
 
+def drag_object_on_canvas(page: Page, challenge_frame, from_cell, to_cell, screenshot_path: Path) -> None:
+    """Перетаскивает объект на canvas (например, курицу на медведя)."""
+    try:
+        canvas_info = challenge_frame.locator('canvas').bounding_box()
+    except Exception as e:
+        print(f"Не удалось получить canvas: {e}")
+        return
+
+    img = Image.open(screenshot_path)
+    img_width, img_height = img.size
+
+    # Масштаб: скриншот -> canvas на странице
+    scale_x = canvas_info['width'] / img_width
+    scale_y = canvas_info['height'] / img_height
+
+    # Координаты начала (from)
+    if hasattr(from_cell, 'center') and from_cell.center:
+        from_x, from_y = from_cell.center
+    else:
+        x, y, w, h = from_cell.bbox
+        from_x = x + w / 2
+        from_y = y + h / 2
+
+    # Координаты конца (to)
+    if hasattr(to_cell, 'center') and to_cell.center:
+        to_x, to_y = to_cell.center
+    else:
+        x, y, w, h = to_cell.bbox
+        to_x = x + w / 2
+        to_y = y + h / 2
+
+    # Масштабируем координаты
+    abs_from_x = canvas_info['x'] + from_x * scale_x
+    abs_from_y = canvas_info['y'] + from_y * scale_y
+    abs_to_x = canvas_info['x'] + to_x * scale_x
+    abs_to_y = canvas_info['y'] + to_y * scale_y
+
+    try:
+        print(f"Перетаскиваем: ({abs_from_x:.1f}, {abs_from_y:.1f}) → ({abs_to_x:.1f}, {abs_to_y:.1f})")
+        # Выполняем drag
+        page.mouse.move(abs_from_x, abs_from_y)
+        time.sleep(0.2)
+        page.mouse.down()
+        time.sleep(0.3)
+        page.mouse.move(abs_to_x, abs_to_y, steps=20)  # Плавное перемещение
+        time.sleep(0.3)
+        page.mouse.up()
+        print("✅ Перетаскивание выполнено")
+        time.sleep(0.5)
+    except Exception as drag_err:
+        print(f"Ошибка перетаскивания: {drag_err}")
+
+
 def click_cells_on_canvas(page: Page, challenge_frame, cells, screenshot_path: Path) -> None:
     try:
         canvas_info = challenge_frame.locator('canvas').bounding_box()
@@ -634,14 +687,14 @@ def capture_and_analyze_captcha(page: Page, worker_id: int = 0, timeout: float =
                         clicked = False
                         for selector in checkbox_selectors:
                             if checkbox_frame.locator(selector).count() > 0:
-                                checkbox_frame.locator(selector).click()
+                                checkbox_frame.locator(selector).click(timeout=5000)
                                 clicked = True
                                 break
                         
                         if not clicked:
                             # Если селекторы не сработали, кликаем по центру iframe
                             print("   Кликаем по центру iframe чекбокса")
-                            checkbox_frame.locator('body').click()
+                            checkbox_frame.locator('body').click(timeout=5000)
                         
                         print("✅ Чекбокс нажат, ждем результата...")
                         time.sleep(4.0)
@@ -674,7 +727,17 @@ def capture_and_analyze_captcha(page: Page, worker_id: int = 0, timeout: float =
                         
                     except Exception as checkbox_err:
                         print(f"⚠️ Ошибка клика на чекбокс: {checkbox_err}")
-                        time.sleep(2.0)
+                        # Не критично - возможно задание уже появилось
+                        time.sleep(1.0)
+                        # Проверяем появилось ли задание
+                        if page.locator('iframe[src*="frame=challenge"]').count() > 0:
+                            try:
+                                if page.locator('iframe[src*="frame=challenge"]').first.is_visible():
+                                    print("   Задание уже появилось - продолжаем")
+                                    break
+                            except:
+                                pass
+                        time.sleep(1.0)
                         continue
                 else:
                     # Нет чекбокса - проверяем задание
@@ -750,11 +813,53 @@ def capture_and_analyze_captcha(page: Page, worker_id: int = 0, timeout: float =
             )
             print(f"Разметка модели сохранена: {overlay_path}")
             
-            # Если обнаружены шарики и цели - решаем без GPT
-            if structure.balls and structure.target_balls:
+            # Проверяем различные типы заданий и решаем без GPT если возможно
+            cells_to_click = None
+            perform_drag = False
+            drag_from = None
+            drag_to = None
+            
+            # 1. Задание с медведем и курицей - DRAG AND DROP
+            if structure.bears and structure.fried_chickens:
+                print("🐻🍗 Обнаружены медведь и курица - выполняем перетаскивание")
+                drag_from = structure.fried_chickens[0]  # Курицу
+                drag_to = structure.bears[0]  # На медведя
+                perform_drag = True
+                print(f"Перетаскиваем курицу #{drag_from.id} на медведя #{drag_to.id}")
+            
+            # 2. Задание с шариками и целями
+            elif structure.balls and structure.target_balls:
                 print("Обнаружены шарики и цели - решаем без GPT")
                 cells_to_click = structure.target_balls
                 print(f"Кликаем target_balls: {[c.id for c in cells_to_click]}")
+            
+            # 3. Только медведи (без курицы)
+            elif structure.bears:
+                print("Обнаружены медведи - решаем без GPT")
+                cells_to_click = structure.bears
+                print(f"Кликаем bears: {[c.id for c in cells_to_click]}")
+            
+            # 4. Только курица (без медведя)
+            elif structure.fried_chickens:
+                print("Обнаружена жареная курица - решаем без GPT")
+                cells_to_click = structure.fried_chickens
+                print(f"Кликаем fried_chickens: {[c.id for c in cells_to_click]}")
+            
+            # 5. Задание с буквами (используем GPT для определения правильных)
+            elif structure.letters or structure.target_letters or structure.main_letters:
+                print(f"Обнаружены буквы (letters: {len(structure.letters or [])}, target: {len(structure.target_letters or [])}, main: {len(structure.main_letters or [])})")
+                # Для букв все равно используем GPT для определения правильных
+                cells_to_click = None  # Переходим к GPT анализу
+            
+            # 6. Выполняем действие
+            if perform_drag:
+                # Выполняем drag-and-drop
+                drag_object_on_canvas(page, challenge_frame, drag_from, drag_to, screenshot_path)
+                # НЕ кликаем ничего больше - только drag
+            elif cells_to_click:
+                # Кликаем по найденным объектам
+                click_cells_on_canvas(page, challenge_frame, cells_to_click, screenshot_path)
+                # НЕ идем в GPT
             else:
                 # Для остальных случаев используем GPT анализатор
                 analyzer = GPTAnalyzer()
@@ -824,8 +929,12 @@ def capture_and_analyze_captcha(page: Page, worker_id: int = 0, timeout: float =
                     else:
                         cells_to_click = tiles[:min(3, len(tiles))]
                     print(f"Кликаем tiles: {[c.id for c in cells_to_click]}")
-            
-            click_cells_on_canvas(page, challenge_frame, cells_to_click, screenshot_path)
+                
+                # Выполняем клики (только для GPT пути)
+                if cells_to_click:
+                    click_cells_on_canvas(page, challenge_frame, cells_to_click, screenshot_path)
+                else:
+                    print("⚠️ Нет объектов для клика")
             
             time.sleep(1.0)
             try:
@@ -978,13 +1087,85 @@ def capture_and_analyze_captcha(page: Page, worker_id: int = 0, timeout: float =
         return False
 
 
-def register_account(headless: bool, wait_after_submit: float, worker_id: int = 0, used_emails: set[str] = None, sms_country: int = 16) -> bool:
+def register_account(
+    headless: bool, 
+    wait_after_submit: float, 
+    worker_id: int = 0, 
+    used_emails: set[str] = None, 
+    sms_country: int = 16,
+    proxy: str = None,
+    profile_dir: str = None
+) -> bool:
     if used_emails is None:
         used_emails = set()
     
+    # Импортируем stealth модули
+    try:
+        import sys
+        from pathlib import Path as P
+        project_root = P(__file__).parent.parent
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+        
+        from src.stealth import (
+            get_stealth_browser_config,
+            get_stealth_context_options,
+            get_stealth_js,
+        )
+        from src.stealth.browser_config import get_locale_for_country, get_timezone_for_country
+        
+        # Определяем страну для locale/timezone
+        country_code = "GB"  # По умолчанию UK
+        if sms_country == 0:
+            country_code = "RU"
+        elif sms_country == 43:
+            country_code = "DE"
+        elif sms_country == 16:
+            country_code = "GB"
+        elif sms_country == 83:
+            country_code = "BG"
+        elif sms_country == 78:
+            country_code = "FR"
+        elif sms_country == 187:
+            country_code = "US"
+        
+        locale = get_locale_for_country(country_code)
+        timezone = get_timezone_for_country(country_code)
+        
+        print(f"🔧 Stealth config: locale={locale}, timezone={timezone}, proxy={'Yes' if proxy else 'No'}")
+        
+    except Exception as e:
+        print(f"⚠️ Не удалось загрузить stealth модули: {e}")
+        print("   Продолжаем без stealth...")
+        get_stealth_browser_config = None
+    
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=headless)
-        page = browser.new_page()
+        # Используем stealth конфигурацию если доступна
+        if get_stealth_browser_config:
+            browser_config = get_stealth_browser_config(
+                headless=headless,
+                proxy=proxy,
+                user_data_dir=profile_dir,
+            )
+            browser = playwright.chromium.launch(**browser_config)
+            
+            # Context с stealth опциями
+            context_options = get_stealth_context_options(
+                proxy=proxy,
+                locale=locale,
+                timezone_id=timezone,
+            )
+            context = browser.new_context(**context_options)
+            page = context.new_page()
+            
+            # Инъекция stealth JS
+            stealth_js = get_stealth_js()
+            page.add_init_script(stealth_js)
+            print("✅ Stealth режим активирован")
+        else:
+            # Fallback: стандартный запуск
+            browser = playwright.chromium.launch(headless=headless)
+            page = browser.new_page()
         try:
             # Пытаемся зарегистрироваться, при drag-задании начинаем заново
             max_retries = 5  # Увеличиваем количество попыток
@@ -1036,27 +1217,67 @@ def register_account(headless: bool, wait_after_submit: float, worker_id: int = 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Автозаполнение формы регистрации Discord")
+    parser = argparse.ArgumentParser(description="Автозаполнение формы регистрации Discord с поддержкой stealth")
     parser.add_argument("--count", type=int, default=1, help="Количество попыток регистрации")
     parser.add_argument("--delay", type=float, default=3.0, help="Пауза между попытками (сек)")
     parser.add_argument("--wait-after-submit", type=float, default=5.0, help="Пауза после отправки формы (сек)")
     parser.add_argument("--headless", action="store_true", help="Запуск браузера в режиме headless")
     parser.add_argument("--country", type=int, default=16, help="Код страны для SMS-Activate (16=UK, 43=Германия, 0=Россия)")
+    
+    # Stealth опции
+    parser.add_argument("--proxy", type=str, default=None, help="Прокси в формате user:pass@ip:port или ip:port")
+    parser.add_argument("--proxy-file", type=str, default=None, help="Файл с прокси (один на строку)")
+    parser.add_argument("--profile-dir", type=str, default=None, help="Директория для сохранения профиля браузера")
+    
     args = parser.parse_args()
 
     successes = 0
     used_emails = set()
+    proxy_manager = None
     
-    print(f"🌍 Используем страну для SMS: код {args.country}")
+    print("=" * 70)
+    print("🤖 Discord Auto Register - Stealth Edition")
+    print("=" * 70)
+    print(f"🌍 Страна SMS: код {args.country}")
+    
+    # Загружаем прокси если указаны
+    if args.proxy_file:
+        try:
+            import sys
+            from pathlib import Path as P
+            project_root = P(__file__).parent.parent
+            if str(project_root) not in sys.path:
+                sys.path.insert(0, str(project_root))
+            
+            from src.stealth import ProxyManager
+            proxy_manager = ProxyManager(proxy_file=args.proxy_file)
+            print(f"🔄 Загружено {proxy_manager.count_available()} прокси из файла")
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки прокси: {e}")
+    
+    print("=" * 70)
     print()
     
     for attempt in range(1, args.count + 1):
+        # Выбираем прокси
+        current_proxy = args.proxy
+        if proxy_manager:
+            current_proxy = proxy_manager.get_proxy()
+            print(f"🔌 Используем прокси: {current_proxy}")
+        
+        # Генерируем уникальную директорию профиля если нужно
+        current_profile_dir = None
+        if args.profile_dir:
+            current_profile_dir = f"{args.profile_dir}/account_{attempt}"
+        
         success = register_account(
             headless=args.headless,
             wait_after_submit=args.wait_after_submit,
             worker_id=attempt,
             used_emails=used_emails,
-            sms_country=args.country
+            sms_country=args.country,
+            proxy=current_proxy,
+            profile_dir=current_profile_dir,
         )
         if success:
             successes += 1

@@ -1,6 +1,11 @@
 flask>=3.0.0
 requests>=2.31.0
 playwright>=1.40.0
+# Botright - install from GitHub for latest version
+# pip install git+https://github.com/Vinyzu/Botright.git
+botright>=0.5.1
+fake-useragent>=2.2.0
+httpx==0.24.1  # Важно! Botright требует эту версию
 torch>=2.1.0
 transformers>=4.45.0
 accelerate>=0.24.0
@@ -12,3 +17,4 @@ numpy>=1.24.0
 open-clip-torch>=2.24.0
 opencv-python>=4.8.0
 openai>=1.40.0
+tqdm>=4.66.0

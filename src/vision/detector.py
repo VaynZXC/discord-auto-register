@@ -47,6 +47,11 @@ class StructureInfo:
     regions: List[Region]
     balls: Optional[List[GridCell]] = None  # Все найденные мячи
     target_balls: Optional[List[GridCell]] = None  # Правильные мячи
+    bears: Optional[List[GridCell]] = None  # Медведи
+    fried_chickens: Optional[List[GridCell]] = None  # Жареная курица
+    letters: Optional[List[GridCell]] = None  # Обычные буквы
+    target_letters: Optional[List[GridCell]] = None  # Целевые буквы
+    main_letters: Optional[List[GridCell]] = None  # Главные буквы (для drag)
 
 
 # ---------------------------------------------------------------------------
@@ -264,10 +269,21 @@ def _detect_structure_model(img: np.ndarray) -> StructureInfo:
     ball_scores: List[float] = []
     target_ball_boxes_xyxy: List[Tuple[float, float, float, float]] = []
     target_ball_scores: List[float] = []
+    bear_boxes_xyxy: List[Tuple[float, float, float, float]] = []
+    bear_scores: List[float] = []
+    chicken_boxes_xyxy: List[Tuple[float, float, float, float]] = []
+    chicken_scores: List[float] = []
+    letter_boxes_xyxy: List[Tuple[float, float, float, float]] = []
+    letter_scores: List[float] = []
+    target_letter_boxes_xyxy: List[Tuple[float, float, float, float]] = []
+    target_letter_scores: List[float] = []
+    main_letter_boxes_xyxy: List[Tuple[float, float, float, float]] = []
+    main_letter_scores: List[float] = []
 
     for bbox, label_idx, score in zip(boxes, labels, scores):
         label = id_to_label.get(int(label_idx))
-        if label not in {"instruction", "body", "tile", "ball", "target_ball"}:
+        if label not in {"instruction", "body", "tile", "ball", "target_ball", 
+                         "bear", "fried_chicken", "letter", "target_letter", "main_letter"}:
             continue
         if score < 0.3:
             continue
@@ -289,6 +305,21 @@ def _detect_structure_model(img: np.ndarray) -> StructureInfo:
         elif label == "target_ball":
             target_ball_boxes_xyxy.append((float(x1), float(y1), float(x2), float(y2)))
             target_ball_scores.append(float(score))
+        elif label == "bear":
+            bear_boxes_xyxy.append((float(x1), float(y1), float(x2), float(y2)))
+            bear_scores.append(float(score))
+        elif label == "fried_chicken":
+            chicken_boxes_xyxy.append((float(x1), float(y1), float(x2), float(y2)))
+            chicken_scores.append(float(score))
+        elif label == "letter":
+            letter_boxes_xyxy.append((float(x1), float(y1), float(x2), float(y2)))
+            letter_scores.append(float(score))
+        elif label == "target_letter":
+            target_letter_boxes_xyxy.append((float(x1), float(y1), float(x2), float(y2)))
+            target_letter_scores.append(float(score))
+        elif label == "main_letter":
+            main_letter_boxes_xyxy.append((float(x1), float(y1), float(x2), float(y2)))
+            main_letter_scores.append(float(score))
 
     img_h, img_w = img.shape[0], img.shape[1]
     if body_area is None:
@@ -371,6 +402,32 @@ def _detect_structure_model(img: np.ndarray) -> StructureInfo:
             center = (int(x1) + w_box / 2, int(y1) + h_box / 2)
             target_ball_cells.append(GridCell(id=idx, bbox=bbox_xywh, center=center, score=score_val))
 
+    # Обработка остальных объектов (bear, chicken, letters)
+    def _process_objects(boxes_list, scores_list):
+        if not boxes_list:
+            return None
+        boxes_tensor = torch.tensor(boxes_list, dtype=torch.float32)
+        scores_tensor = torch.tensor(scores_list, dtype=torch.float32)
+        keep_idx = nms(boxes_tensor, scores_tensor, iou_threshold=0.4)
+        filtered = [(boxes_list[i], scores_list[i]) for i in keep_idx.tolist()]
+        filtered.sort(key=lambda item: ((item[0][1] + item[0][3]) / 2, (item[0][0] + item[0][2]) / 2))
+        
+        cells = []
+        for idx, (box_xyxy, score_val) in enumerate(filtered, start=1):
+            x1, y1, x2, y2 = box_xyxy
+            w_box = max(1, int(x2 - x1))
+            h_box = max(1, int(y2 - y1))
+            bbox_xywh = (int(x1), int(y1), w_box, h_box)
+            center = (int(x1) + w_box / 2, int(y1) + h_box / 2)
+            cells.append(GridCell(id=idx, bbox=bbox_xywh, center=center, score=score_val))
+        return cells
+    
+    bear_cells = _process_objects(bear_boxes_xyxy, bear_scores)
+    chicken_cells = _process_objects(chicken_boxes_xyxy, chicken_scores)
+    letter_cells = _process_objects(letter_boxes_xyxy, letter_scores)
+    target_letter_cells = _process_objects(target_letter_boxes_xyxy, target_letter_scores)
+    main_letter_cells = _process_objects(main_letter_boxes_xyxy, main_letter_scores)
+
     return StructureInfo(
         image_size=(img.shape[1], img.shape[0]),
         instruction_area=instruction,
@@ -378,6 +435,11 @@ def _detect_structure_model(img: np.ndarray) -> StructureInfo:
         regions=regions,
         balls=ball_cells if ball_cells else None,
         target_balls=target_ball_cells if target_ball_cells else None,
+        bears=bear_cells,
+        fried_chickens=chicken_cells,
+        letters=letter_cells,
+        target_letters=target_letter_cells,
+        main_letters=main_letter_cells,
     )
 
 
@@ -420,8 +482,13 @@ def _ensure_structure_defaults(structure: StructureInfo, w: int, h: int) -> Stru
         instruction_area=instruction,
         body_area=body_area,
         regions=regions,
-        balls=structure.balls,  # сохраняем найденные мячи (если были)
+        balls=structure.balls,
         target_balls=structure.target_balls,
+        bears=structure.bears,
+        fried_chickens=structure.fried_chickens,
+        letters=structure.letters,
+        target_letters=structure.target_letters,
+        main_letters=structure.main_letters,
     )
 
 

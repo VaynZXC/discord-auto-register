@@ -13,7 +13,7 @@ dataset:
     - main_letter
 
 train:
-  epochs: 5  # Очень быстрый тест (потом увеличить)
+  epochs: 15
   batch_size: 4
   lr: 0.0005
   val_split: 0.1

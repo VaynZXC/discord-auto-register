@@ -15,6 +15,7 @@ from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from PIL import Image
 import yaml
+from tqdm import tqdm
 
 
 class StructureDataset(Dataset):
@@ -118,7 +119,11 @@ def train(config_path: Path) -> None:
     for epoch in range(cfg["train"]["epochs"]):
         model.train()
         running_loss = 0.0
-        for images, targets in train_loader:
+        
+        # Прогресс-бар для батчей в эпохе
+        pbar = tqdm(train_loader, desc=f"Эпоха {epoch+1}/{cfg['train']['epochs']}", unit="batch")
+        
+        for images, targets in pbar:
             images = [img.to(device) for img in images]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             optimizer.zero_grad()
@@ -127,6 +132,10 @@ def train(config_path: Path) -> None:
             losses.backward()
             optimizer.step()
             running_loss += losses.item()
+            
+            # Обновляем прогресс-бар
+            pbar.set_postfix({'loss': f'{losses.item():.4f}'})
+        
         avg_loss = running_loss / max(1, len(train_loader))
 
         if val_loader:
@@ -140,9 +149,9 @@ def train(config_path: Path) -> None:
                     losses = _sum_losses(loss_obj)
                     val_loss += losses.item()
             val_loss /= max(1, len(val_loader))
-            print(f"Epoch {epoch+1}/{cfg['train']['epochs']} loss: {avg_loss:.4f} | val_loss: {val_loss:.4f}")
+            print(f"\n✅ Эпоха {epoch+1}/{cfg['train']['epochs']} | Train loss: {avg_loss:.4f} | Val loss: {val_loss:.4f}")
         else:
-            print(f"Epoch {epoch+1}/{cfg['train']['epochs']} loss: {avg_loss:.4f}")
+            print(f"\n✅ Эпоха {epoch+1}/{cfg['train']['epochs']} | Train loss: {avg_loss:.4f}")
 
     save_path = Path("training/structure_model.pth")
     torch.save(model.state_dict(), save_path)
